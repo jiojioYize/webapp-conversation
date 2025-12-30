@@ -128,3 +128,53 @@ a {
   background-clip: text;
   text-fill-color: transparent;
 }
+
+/* 自定义滚动条样式 - 只显示右侧垂直滚动条 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 0;
+  /* 隐藏水平滚动条 */
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: #6b7280;
+}
+
+/* 隐藏水平滚动条 */
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Firefox 滚动条样式 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+}
+
+/* 聊天区域滚动优化 */
+.chat-scroll-area {
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+/* 侧边栏滚动优化 */
+.sidebar-scroll-area {
+  overflow-y: auto;
+  overflow-x: hidden;
+}

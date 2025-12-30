@@ -6,8 +6,8 @@ import type { Emoji } from '@/types/tools'
 import { HandThumbDownIcon, HandThumbUpIcon } from '@heroicons/react/24/outline'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import Button from '@/app/components/base/button'
 import StreamdownMarkdown from '@/app/components/base/streamdown-markdown'
+import Toast from '@/app/components/base/toast'
 import Tooltip from '@/app/components/base/tooltip'
 import WorkflowProcess from '@/app/components/workflow/workflow-process'
 import { randomString } from '@/utils/string'
@@ -38,6 +38,20 @@ const RatingIcon: FC<{ isLike: boolean }> = ({ isLike }) => {
   return isLike ? <HandThumbUpIcon className="w-4 h-4" /> : <HandThumbDownIcon className="w-4 h-4" />
 }
 
+// 复制图标
+const CopyIcon: FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M5.33333 5.33333V3.46667C5.33333 2.71993 5.33333 2.34656 5.47866 2.06135C5.60649 1.81046 5.81046 1.60649 6.06135 1.47866C6.34656 1.33333 6.71993 1.33333 7.46667 1.33333H12.5333C13.2801 1.33333 13.6534 1.33333 13.9387 1.47866C14.1895 1.60649 14.3935 1.81046 14.5213 2.06135C14.6667 2.34656 14.6667 2.71993 14.6667 3.46667V8.53333C14.6667 9.28007 14.6667 9.65344 14.5213 9.93865C14.3935 10.1895 14.1895 10.3935 13.9387 10.5213C13.6534 10.6667 13.2801 10.6667 12.5333 10.6667H10.6667M3.46667 14.6667H8.53333C9.28007 14.6667 9.65344 14.6667 9.93865 14.5213C10.1895 14.3935 10.3935 14.1895 10.5213 13.9387C10.6667 13.6534 10.6667 13.2801 10.6667 12.5333V7.46667C10.6667 6.71993 10.6667 6.34656 10.5213 6.06135C10.3935 5.81046 10.1895 5.60649 9.93865 5.47866C9.65344 5.33333 9.28007 5.33333 8.53333 5.33333H3.46667C2.71993 5.33333 2.34656 5.33333 2.06135 5.47866C1.81046 5.60649 1.60649 5.81046 1.47866 6.06135C1.33333 6.34656 1.33333 6.71993 1.33333 7.46667V12.5333C1.33333 13.2801 1.33333 13.6534 1.47866 13.9387C1.60649 14.1895 1.81046 14.3935 2.06135 14.5213C2.34656 14.6667 2.71993 14.6667 3.46667 14.6667Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
+// 重新生成图标
+const RegenerateIcon: FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M1.33333 6.66667C1.33333 6.66667 2.66891 4.84548 3.75736 3.75736C4.84582 2.66891 6.34315 2 8 2C11.3137 2 14 4.68629 14 8C14 11.3137 11.3137 14 8 14C5.28095 14 2.99072 12.1695 2.25469 9.66667M1.33333 6.66667V2.66667M1.33333 6.66667H5.33333" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
 const EditIcon: FC<{ className?: string }> = ({ className }) => {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
@@ -67,6 +81,7 @@ interface IAnswerProps {
   item: ChatItem
   feedbackDisabled: boolean
   onFeedback?: FeedbackFunc
+  onRegenerate?: (messageId: string) => void
   isResponding?: boolean
   allToolIcons?: Record<string, string | Emoji>
   suggestionClick?: (suggestion: string) => void
@@ -77,6 +92,7 @@ const Answer: FC<IAnswerProps> = ({
   item,
   feedbackDisabled = false,
   onFeedback,
+  onRegenerate,
   isResponding,
   allToolIcons,
   suggestionClick = () => { },
@@ -85,6 +101,26 @@ const Answer: FC<IAnswerProps> = ({
   const isAgentMode = !!agent_thoughts && agent_thoughts.length > 0
 
   const { t } = useTranslation()
+
+  // 复制回答内容
+  const handleCopy = async () => {
+    try {
+      // 获取纯文本内容（如果是 agent 模式，合并所有 thought）
+      let textContent = content
+      if (isAgentMode && agent_thoughts) {
+        textContent = agent_thoughts.map(item => item.thought).filter(Boolean).join('\n')
+      }
+      await navigator.clipboard.writeText(textContent)
+      Toast.notify({ type: 'success', message: t('common.operation.copySuccess') as string })
+    } catch (e) {
+      console.error('Failed to copy:', e)
+    }
+  }
+
+  // 重新生成
+  const handleRegenerate = () => {
+    onRegenerate?.(id)
+  }
 
   /**
    * Render feedback results (distinguish between users and administrators)
@@ -102,7 +138,7 @@ const Answer: FC<IAnswerProps> = ({
     return (
       <Tooltip
         selector={`user-feedback-${randomString(16)}`}
-        content={isLike ? '取消赞同' : '取消反对'}
+        content={isLike ? t('common.operation.cancelLike') as string : t('common.operation.cancelDislike') as string}
       >
         <div
           className="relative box-border flex items-center justify-center h-7 w-7 p-0.5 rounded-lg bg-white cursor-pointer text-gray-500 hover:text-gray-800"
@@ -124,7 +160,8 @@ const Answer: FC<IAnswerProps> = ({
    * @returns comp
    */
   const renderItemOperation = () => {
-    const userOperation = () => {
+    // 反馈按钮组（赞同/反对）
+    const feedbackButtons = () => {
       return feedback?.rating
         ? null
         : (
@@ -139,9 +176,26 @@ const Answer: FC<IAnswerProps> = ({
         )
     }
 
+    // 操作按钮组（复制/重新生成）
+    const actionButtons = () => {
+      return (
+        <div className="flex gap-1">
+          <Tooltip selector={`copy-answer-${randomString(16)}`} content={t('common.operation.copy') as string}>
+            {OperationBtn({ innerContent: <IconWrapper><CopyIcon className="w-4 h-4" /></IconWrapper>, onClick: handleCopy })}
+          </Tooltip>
+          {onRegenerate && (
+            <Tooltip selector={`regenerate-${randomString(16)}`} content={t('common.operation.regenerate') as string}>
+              {OperationBtn({ innerContent: <IconWrapper><RegenerateIcon className="w-4 h-4" /></IconWrapper>, onClick: handleRegenerate })}
+            </Tooltip>
+          )}
+        </div>
+      )
+    }
+
     return (
       <div className={`${s.itemOperation} flex gap-2`}>
-        {userOperation()}
+        {feedbackButtons()}
+        {actionButtons()}
       </div>
     )
   }
@@ -179,17 +233,9 @@ const Answer: FC<IAnswerProps> = ({
   return (
     <div key={id}>
       <div className="flex items-start">
-        <div className={`${s.answerIcon} w-10 h-10 shrink-0`}>
-          {isResponding
-            && (
-              <div className={s.typeingIcon}>
-                <LoadingAnim type="avatar" />
-              </div>
-            )}
-        </div>
-        <div className={`${s.answerWrap} max-w-[calc(100%-3rem)]`}>
+        <div className={`${s.answerWrap}`}>
           <div className={`${s.answer} relative text-sm text-gray-900`}>
-            <div className={`ml-2 py-3 px-4 bg-gray-100 rounded-tr-2xl rounded-b-2xl ${workflowProcess && 'min-w-[480px]'}`}>
+            <div className={`py-3 px-4 bg-white rounded-tr-2xl rounded-b-2xl ${workflowProcess && 'min-w-[480px]'}`}>
               {workflowProcess && (
                 <WorkflowProcess data={workflowProcess} hideInfo />
               )}
@@ -206,10 +252,14 @@ const Answer: FC<IAnswerProps> = ({
                   ))}
               {suggestedQuestions.length > 0 && (
                 <div className="mt-3">
-                  <div className="flex gap-1 mt-1 flex-wrap">
+                  <div className="flex gap-2 mt-1 flex-wrap">
                     {suggestedQuestions.map((suggestion, index) => (
-                      <div key={index} className="flex items-center gap-1">
-                        <Button className="text-sm" type="link" onClick={() => suggestionClick(suggestion)}>{suggestion}</Button>
+                      <div
+                        key={index}
+                        className="flex items-center px-3 py-2 bg-white border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 hover:border-gray-300 transition-colors max-w-full"
+                        onClick={() => suggestionClick(suggestion)}
+                      >
+                        <span className="text-sm text-gray-700 break-words whitespace-pre-wrap">{suggestion}</span>
                       </div>
                     ))}
                   </div>

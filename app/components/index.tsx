@@ -8,8 +8,7 @@ import useConversation from '@/hooks/use-conversation'
 import Toast from '@/app/components/base/toast'
 import Sidebar from '@/app/components/sidebar'
 import ConfigSence from '@/app/components/config-scence'
-import Header from '@/app/components/header'
-import { fetchAppParams, fetchChatList, fetchConversations, generationConversationName, sendChatMessage, updateFeedback } from '@/service'
+import { fetchAppParams, fetchChatList, fetchConversations, generationConversationName, sendChatMessage, updateFeedback, renameConversation, deleteConversation } from '@/service'
 import type { ChatItem, ConversationItem, Feedbacktype, PromptConfig, VisionFile, VisionSettings } from '@/types/app'
 import type { FileUpload } from '@/app/components/base/file-uploader-in-attachment/types'
 import { Resolution, TransferMethod, WorkflowRunningStatus } from '@/types/app'
@@ -42,6 +41,8 @@ const Main: FC<IMainProps> = () => {
   const [inited, setInited] = useState<boolean>(false)
   // in mobile, show sidebar by click button
   const [isShowSidebar, { setTrue: showSidebar, setFalse: hideSidebar }] = useBoolean(false)
+  // sidebar collapsed state
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false)
   const [visionConfig, setVisionConfig] = useState<VisionSettings | undefined>({
     enabled: false,
     number_limits: 2,
@@ -634,6 +635,90 @@ const Main: FC<IMainProps> = () => {
     notify({ type: 'success', message: t('common.api.success') })
   }
 
+  // 编辑问题并重新发送
+  const handleEditQuestion = (questionId: string, newContent: string) => {
+    if (isResponding) {
+      notify({ type: 'info', message: t('app.errorMessage.waitForResponse') })
+      return
+    }
+    // 找到问题在列表中的位置
+    const questionIndex = chatList.findIndex(item => item.id === questionId)
+    if (questionIndex === -1) return
+
+    // 删除该问题及其之后的所有消息
+    const newChatList = chatList.slice(0, questionIndex)
+    setChatList(newChatList)
+
+    // 重新发送编辑后的消息
+    handleSend(newContent, [])
+  }
+
+  // 重新生成回答
+  const handleRegenerate = (messageId: string) => {
+    if (isResponding) {
+      notify({ type: 'info', message: t('app.errorMessage.waitForResponse') })
+      return
+    }
+    // 找到该回答对应的问题
+    const answerIndex = chatList.findIndex(item => item.id === messageId)
+    if (answerIndex === -1) return
+
+    // 找到该回答之前的问题（回答前一个应该是问题）
+    const questionIndex = answerIndex - 1
+    if (questionIndex < 0) return
+
+    const questionItem = chatList[questionIndex]
+    if (!questionItem || questionItem.isAnswer) return
+
+    // 获取问题内容
+    const questionContent = questionItem.content
+
+    // 删除该问题及其之后的所有消息（包括问题和回答）
+    const newChatList = chatList.slice(0, questionIndex)
+    setChatList(newChatList)
+
+    // 重新发送问题
+    handleSend(questionContent, [])
+  }
+
+  // 重命名会话
+  const handleRenameConversation = async (id: string, name: string) => {
+    try {
+      await renameConversation(id, name)
+      setConversationList(produce(conversationList, (draft) => {
+        const index = draft.findIndex(item => item.id === id)
+        if (index !== -1) {
+          draft[index].name = name
+        }
+      }))
+      notify({ type: 'success', message: t('common.api.success') })
+    }
+    catch (e: any) {
+      notify({ type: 'error', message: e.message || t('app.errorMessage.renameFailed') as string })
+    }
+  }
+
+  // 删除会话
+  const handleDeleteConversation = async (id: string) => {
+    try {
+      await deleteConversation(id)
+      setConversationList(produce(conversationList, (draft) => {
+        const index = draft.findIndex(item => item.id === id)
+        if (index !== -1) {
+          draft.splice(index, 1)
+        }
+      }))
+      // 如果删除的是当前会话，切换到新会话
+      if (id === currConversationId) {
+        handleConversationIdChange('-1')
+      }
+      notify({ type: 'success', message: t('common.api.success') })
+    }
+    catch (e: any) {
+      notify({ type: 'error', message: e.message || t('app.errorMessage.deleteFailed') as string })
+    }
+  }
+
   const renderSidebar = () => {
     if (!APP_ID || !APP_INFO || !promptConfig) { return null }
     return (
@@ -642,6 +727,10 @@ const Main: FC<IMainProps> = () => {
         onCurrentIdChange={handleConversationIdChange}
         currentId={currConversationId}
         copyRight={APP_INFO.copyright || APP_INFO.title}
+        onRename={handleRenameConversation}
+        onDelete={handleDeleteConversation}
+        appName={APP_INFO.title}
+        onCollapseChange={setSidebarCollapsed}
       />
     )
   }
@@ -651,25 +740,36 @@ const Main: FC<IMainProps> = () => {
   if (!APP_ID || !APP_INFO || !promptConfig) { return <Loading type='app' /> }
 
   return (
-    <div className='bg-gray-100'>
-      <Header
-        title={APP_INFO.title}
-        isMobile={isMobile}
-        onShowSideBar={showSidebar}
-        onCreateNewChat={() => handleConversationIdChange('-1')}
-      />
-      <div className="flex rounded-t-2xl bg-white overflow-hidden">
-        {/* sidebar */}
-        {!isMobile && renderSidebar()}
-        {isMobile && isShowSidebar && (
-          <div className='fixed inset-0 z-50' style={{ backgroundColor: 'rgba(35, 56, 118, 0.2)' }} onClick={hideSidebar} >
-            <div className='inline-block' onClick={e => e.stopPropagation()}>
-              {renderSidebar()}
-            </div>
+    <div className='flex h-screen bg-gray-100'>
+      {/* sidebar */}
+      {!isMobile && renderSidebar()}
+      {isMobile && isShowSidebar && (
+        <div className='fixed inset-0 z-50' style={{ backgroundColor: 'rgba(35, 56, 118, 0.2)' }} onClick={hideSidebar} >
+          <div className='inline-block' onClick={e => e.stopPropagation()}>
+            {renderSidebar()}
           </div>
-        )}
-        {/* main */}
-        <div className='flex-grow flex flex-col h-[calc(100vh_-_3rem)] overflow-y-auto'>
+        </div>
+      )}
+      {/* main */}
+      <div className='flex-grow flex flex-col h-screen overflow-hidden bg-gray-50'>
+        {/* 对话标题栏 */}
+        <div className='shrink-0 flex items-center justify-center h-12 px-4 relative'>
+          {isMobile && (
+            <button
+              onClick={showSidebar}
+              className='absolute left-4 p-1.5 rounded-lg hover:bg-gray-200'
+            >
+              <svg className="h-5 w-5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            </button>
+          )}
+          <h1 className='text-base font-medium text-gray-800 truncate max-w-[70%]'>{conversationName}</h1>
+        </div>
+
+        <div className='flex-grow flex flex-col overflow-y-auto overflow-x-hidden'>
           <ConfigSence
             conversationName={conversationName}
             hasSetInputs={hasSetInputs}
@@ -689,10 +789,13 @@ const Main: FC<IMainProps> = () => {
                   chatList={chatList}
                   onSend={handleSend}
                   onFeedback={handleFeedback}
+                  onEditQuestion={handleEditQuestion}
+                  onRegenerate={handleRegenerate}
                   isResponding={isResponding}
                   checkCanSend={checkCanSend}
                   visionConfig={visionConfig}
                   fileConfig={fileConfig}
+                  sidebarCollapsed={sidebarCollapsed}
                 />
               </div>)
           }

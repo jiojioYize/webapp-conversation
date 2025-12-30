@@ -22,11 +22,23 @@ const translation = {
       'privacy policy',
     privacyPolicyRight:
       ' provided by the app developer.',
+    rename: 'Rename',
+    delete: 'Delete',
+    deleteConfirm: 'Are you sure you want to delete this conversation?',
+    renameTitle: 'Rename Conversation',
+    renamePlaceholder: 'Enter new conversation name',
+    pin: 'Pin to top',
+    unpin: 'Unpin',
+    collapseSidebar: 'Collapse sidebar',
+    expandSidebar: 'Expand sidebar',
+    inputPlaceholder: 'Type your message...',
   },
   errorMessage: {
     valueOfVarRequired: 'Variables value can not be empty',
     waitForResponse:
       'Please wait for the response to the previous message to complete.',
+    renameFailed: 'Failed to rename conversation',
+    deleteFailed: 'Failed to delete conversation',
   },
   variableTable: {
     optional: 'Optional',
