@@ -90,3 +90,8 @@
 .sendBtnActive:hover {
   background-color: #EBF5FF;
 }
+
+.sendBtnDisabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

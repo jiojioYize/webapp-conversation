@@ -174,9 +174,11 @@ const Main: FC<IMainProps> = () => {
   */
   const [chatList, setChatList, getChatList] = useGetState<ChatItem[]>([])
   const chatListDomRef = useRef<HTMLDivElement>(null)
+  const shouldScrollToBottomRef = useRef(true) // 控制是否需要滚动到底部
+
   useEffect(() => {
     // scroll to bottom with page-level scrolling
-    if (chatListDomRef.current) {
+    if (chatListDomRef.current && shouldScrollToBottomRef.current) {
       setTimeout(() => {
         chatListDomRef.current?.scrollIntoView({
           behavior: 'auto',
@@ -621,7 +623,7 @@ const Main: FC<IMainProps> = () => {
   }
 
   const handleFeedback = async (messageId: string, feedback: Feedbacktype) => {
-    await updateFeedback({ url: `/messages/${messageId}/feedbacks`, body: { rating: feedback.rating } })
+    await updateFeedback({ url: `/messages/${messageId}/feedbacks`, body: { rating: feedback.rating, content: feedback.content } })
     const newChatList = chatList.map((item) => {
       if (item.id === messageId) {
         return {
@@ -631,7 +633,13 @@ const Main: FC<IMainProps> = () => {
       }
       return item
     })
+    // 反馈更新不需要滚动到底部
+    shouldScrollToBottomRef.current = false
     setChatList(newChatList)
+    // 恢复滚动标记，以便后续消息更新时能正常滚动
+    setTimeout(() => {
+      shouldScrollToBottomRef.current = true
+    }, 100)
     notify({ type: 'success', message: t('common.api.success') })
   }
 

@@ -4,7 +4,7 @@ import type { FeedbackFunc } from '../type'
 import type { ChatItem, MessageRating, VisionFile } from '@/types/app'
 import type { Emoji } from '@/types/tools'
 import { HandThumbDownIcon, HandThumbUpIcon } from '@heroicons/react/24/outline'
-import React from 'react'
+import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import StreamdownMarkdown from '@/app/components/base/streamdown-markdown'
 import Toast from '@/app/components/base/toast'
@@ -87,6 +87,75 @@ interface IAnswerProps {
   suggestionClick?: (suggestion: string) => void
 }
 
+// 反馈对话框组件
+const FeedbackModal: FC<{
+  isOpen: boolean
+  onClose: () => void
+  onSubmit: (content: string) => void
+}> = ({ isOpen, onClose, onSubmit }) => {
+  const { t } = useTranslation()
+  const [feedbackContent, setFeedbackContent] = useState('')
+
+  if (!isOpen) return null
+
+  const handleSubmit = () => {
+    onSubmit(feedbackContent)
+    setFeedbackContent('')
+    onClose()
+  }
+
+  const handleCancel = () => {
+    setFeedbackContent('')
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-white rounded-xl p-6 w-[480px] max-w-[90vw] shadow-xl">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-lg font-semibold text-gray-900">{t('common.feedback.title')}</h3>
+          <button
+            onClick={handleCancel}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </div>
+        <p className="text-sm text-gray-500 mb-4">{t('common.feedback.description')}</p>
+
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            {t('common.feedback.contentLabel')}
+          </label>
+          <textarea
+            value={feedbackContent}
+            onChange={(e) => setFeedbackContent(e.target.value)}
+            placeholder={t('common.feedback.placeholder') as string}
+            className="w-full h-32 px-3 py-2 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700"
+          />
+        </div>
+
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={handleCancel}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            {t('common.operation.cancel')}
+          </button>
+          <button
+            onClick={handleSubmit}
+            className="px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            {t('common.feedback.submit')}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // The component needs to maintain its own state to control whether to display input component
 const Answer: FC<IAnswerProps> = ({
   item,
@@ -101,6 +170,9 @@ const Answer: FC<IAnswerProps> = ({
   const isAgentMode = !!agent_thoughts && agent_thoughts.length > 0
 
   const { t } = useTranslation()
+
+  // 反馈对话框状态
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false)
 
   // 复制回答内容
   const handleCopy = async () => {
@@ -122,6 +194,16 @@ const Answer: FC<IAnswerProps> = ({
     onRegenerate?.(id)
   }
 
+  // 处理不喜欢按钮点击 - 打开反馈对话框
+  const handleDislike = () => {
+    setShowFeedbackModal(true)
+  }
+
+  // 提交反馈内容
+  const handleSubmitFeedback = (feedbackContent: string) => {
+    onFeedback?.(id, { rating: 'dislike', content: feedbackContent })
+  }
+
   /**
    * Render feedback results (distinguish between users and administrators)
    * User reviews cannot be cancelled in Console
@@ -134,7 +216,7 @@ const Answer: FC<IAnswerProps> = ({
 
     const isLike = rating === 'like'
     const ratingIconClassname = isLike ? 'text-primary-600 bg-primary-100 hover:bg-primary-200' : 'text-red-600 bg-red-100 hover:bg-red-200'
-    // The tooltip is always displayed, but the content is different for different scenarios.
+
     return (
       <Tooltip
         selector={`user-feedback-${randomString(16)}`}
@@ -170,7 +252,7 @@ const Answer: FC<IAnswerProps> = ({
               {OperationBtn({ innerContent: <IconWrapper><RatingIcon isLike={true} /></IconWrapper>, onClick: () => onFeedback?.(id, { rating: 'like' }) })}
             </Tooltip>
             <Tooltip selector={`user-feedback-${randomString(16)}`} content={t('common.operation.dislike') as string}>
-              {OperationBtn({ innerContent: <IconWrapper><RatingIcon isLike={false} /></IconWrapper>, onClick: () => onFeedback?.(id, { rating: 'dislike' }) })}
+              {OperationBtn({ innerContent: <IconWrapper><RatingIcon isLike={false} /></IconWrapper>, onClick: handleDislike })}
             </Tooltip>
           </div>
         )
@@ -274,6 +356,13 @@ const Answer: FC<IAnswerProps> = ({
           </div>
         </div>
       </div>
+
+      {/* 反馈对话框 */}
+      <FeedbackModal
+        isOpen={showFeedbackModal}
+        onClose={() => setShowFeedbackModal(false)}
+        onSubmit={handleSubmitFeedback}
+      />
     </div>
   )
 }

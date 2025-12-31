@@ -11,7 +11,6 @@ import type { FeedbackFunc } from './type'
 import type { ChatItem, VisionFile, VisionSettings } from '@/types/app'
 import { TransferMethod } from '@/types/app'
 import Tooltip from '@/app/components/base/tooltip'
-import Toast from '@/app/components/base/toast'
 import ChatImageUploader from '@/app/components/base/image-uploader/chat-image-uploader'
 import ImageList from '@/app/components/base/image-uploader/image-list'
 import { useImageFiles } from '@/app/components/base/image-uploader/hooks'
@@ -59,7 +58,6 @@ const Chat: FC<IChatProps> = ({
   sidebarCollapsed = false,
 }) => {
   const { t } = useTranslation()
-  const { notify } = Toast
   const isUseInputMethod = useRef(false)
 
   const [query, setQuery] = React.useState('')
@@ -71,14 +69,9 @@ const Chat: FC<IChatProps> = ({
     queryRef.current = value
   }
 
-  const logError = (message: string) => {
-    notify({ type: 'error', message, duration: 3000 })
-  }
-
   const valid = () => {
     const query = queryRef.current
     if (!query || query.trim() === '') {
-      logError(t('app.errorMessage.valueOfVarRequired'))
       return false
     }
     return true
@@ -230,13 +223,20 @@ const Chat: FC<IChatProps> = ({
                 <Tooltip
                   selector='send-tip'
                   htmlContent={
-                    <div>
-                      <div>{t('common.operation.send')} Enter</div>
-                      <div>{t('common.operation.lineBreak')} Shift Enter</div>
-                    </div>
+                    query.trim()
+                      ? (
+                        <div>
+                          <div>{t('common.operation.send')} Enter</div>
+                          <div>{t('common.operation.lineBreak')} Shift Enter</div>
+                        </div>
+                      )
+                      : <div>{t('common.operation.enterQuestion')}</div>
                   }
                 >
-                  <div className={`${s.sendBtn} ${query.trim() ? s.sendBtnActive : ''} w-8 h-8 cursor-pointer rounded-md`} onClick={handleSend}></div>
+                  <div
+                    className={`${s.sendBtn} ${query.trim() ? s.sendBtnActive : s.sendBtnDisabled} w-8 h-8 rounded-md ${query.trim() ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+                    onClick={query.trim() ? handleSend : undefined}
+                  ></div>
                 </Tooltip>
               </div>
             </div>
