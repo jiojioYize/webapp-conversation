@@ -107,6 +107,7 @@ const ActionMenu: FC<{
   const { t } = useTranslation()
   const [isOpen, setIsOpen] = useState(false)
   const [showRenameModal, setShowRenameModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [newName, setNewName] = useState(conversationName)
   const menuRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -136,10 +137,13 @@ const ActionMenu: FC<{
   }
 
   const handleDelete = () => {
-    if (window.confirm(t('app.chat.deleteConfirm') as string)) {
-      onDelete?.(conversationId)
-    }
+    setShowDeleteModal(true)
     setIsOpen(false)
+  }
+
+  const handleDeleteConfirm = () => {
+    onDelete?.(conversationId)
+    setShowDeleteModal(false)
   }
 
   const handleTogglePin = () => {
@@ -201,6 +205,41 @@ const ActionMenu: FC<{
           </div>
         )}
       </div>
+
+      {/* 删除确认弹窗 */}
+      {showDeleteModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => setShowDeleteModal(false)}
+        >
+          <div
+            className="bg-white rounded-lg p-5 w-80 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center mb-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center mr-3">
+                <TrashIcon className="h-5 w-5 text-red-600" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900">{t('app.chat.deleteTitle')}</h3>
+            </div>
+            <p className="text-sm text-gray-500 mb-5">{t('app.chat.deleteDescription')}</p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-md"
+              >
+                {t('common.operation.cancel')}
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                className="px-4 py-2 text-sm text-white bg-red-600 hover:bg-red-700 rounded-md"
+              >
+                {t('app.chat.delete')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 重命名弹窗 */}
       {showRenameModal && (

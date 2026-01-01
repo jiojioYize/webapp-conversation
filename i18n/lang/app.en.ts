@@ -25,6 +25,8 @@ const translation = {
     rename: 'Rename',
     delete: 'Delete',
     deleteConfirm: 'Are you sure you want to delete this conversation?',
+    deleteTitle: 'Delete Conversation',
+    deleteDescription: 'This action cannot be undone. Are you sure you want to continue?',
     renameTitle: 'Rename Conversation',
     renamePlaceholder: 'Enter new conversation name',
     pin: 'Pin to top',

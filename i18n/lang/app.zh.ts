@@ -21,6 +21,8 @@ const translation = {
     rename: '重命名',
     delete: '删除',
     deleteConfirm: '确定要删除这个对话吗？',
+    deleteTitle: '删除对话',
+    deleteDescription: '删除后将无法恢复，确定要继续吗？',
     renameTitle: '重命名对话',
     renamePlaceholder: '请输入新的对话名称',
     pin: '置顶',
