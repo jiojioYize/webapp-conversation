@@ -33,6 +33,7 @@ export interface IChatProps {
   onSend?: (message: string, files: VisionFile[]) => void
   onEditQuestion?: (questionId: string, newContent: string) => void
   onRegenerate?: (messageId: string) => void
+  onStopResponding?: () => void
   useCurrentUserAvatar?: boolean
   isResponding?: boolean
   controlClearQuery?: number
@@ -50,6 +51,7 @@ const Chat: FC<IChatProps> = ({
   onSend = () => { },
   onEditQuestion,
   onRegenerate,
+  onStopResponding,
   useCurrentUserAvatar,
   isResponding,
   controlClearQuery,
@@ -220,24 +222,36 @@ const Chat: FC<IChatProps> = ({
                 placeholder="和智能岗位分析与规划助手聊天"
               />
               <div className="absolute bottom-2 right-6 flex items-center h-8">
-                <Tooltip
-                  selector='send-tip'
-                  htmlContent={
-                    query.trim()
-                      ? (
-                        <div>
-                          <div>{t('common.operation.send')} Enter</div>
-                          <div>{t('common.operation.lineBreak')} Shift Enter</div>
-                        </div>
-                      )
-                      : <div>{t('common.operation.enterQuestion')}</div>
-                  }
-                >
-                  <div
-                    className={`${s.sendBtn} ${query.trim() ? s.sendBtnActive : s.sendBtnDisabled} w-8 h-8 rounded-md ${query.trim() ? 'cursor-pointer' : 'cursor-not-allowed'}`}
-                    onClick={query.trim() ? handleSend : undefined}
-                  ></div>
-                </Tooltip>
+                {isResponding ? (
+                  <Tooltip
+                    selector='stop-tip'
+                    htmlContent={<div>{t('common.operation.stopResponding')}</div>}
+                  >
+                    <div
+                      className={`${s.stopBtn} w-8 h-8 rounded-md cursor-pointer`}
+                      onClick={onStopResponding}
+                    ></div>
+                  </Tooltip>
+                ) : (
+                  <Tooltip
+                    selector='send-tip'
+                    htmlContent={
+                      query.trim()
+                        ? (
+                          <div>
+                            <div>{t('common.operation.send')} Enter</div>
+                            <div>{t('common.operation.lineBreak')} Shift Enter</div>
+                          </div>
+                        )
+                        : <div>{t('common.operation.enterQuestion')}</div>
+                    }
+                  >
+                    <div
+                      className={`${s.sendBtn} ${query.trim() ? s.sendBtnActive : s.sendBtnDisabled} w-8 h-8 rounded-md ${query.trim() ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+                      onClick={query.trim() ? handleSend : undefined}
+                    ></div>
+                  </Tooltip>
+                )}
               </div>
             </div>
           </div>

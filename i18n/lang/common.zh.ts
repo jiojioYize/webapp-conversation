@@ -17,6 +17,7 @@ const translation = {
     search: '搜索',
     send: '发送',
     enterQuestion: '请输入问题',
+    stopResponding: '停止响应',
     lineBreak: '换行',
     like: '赞同',
     dislike: '反对',

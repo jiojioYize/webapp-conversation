@@ -68,3 +68,7 @@ export const renameConversation = async (id: string, name: string) => {
 export const deleteConversation = async (id: string) => {
   return del(`conversations/${id}`)
 }
+
+export const stopChatMessageResponding = async (taskId: string) => {
+  return post(`chat-messages/${taskId}/stop`, { body: {} })
+}

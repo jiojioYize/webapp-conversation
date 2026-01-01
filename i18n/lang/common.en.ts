@@ -17,6 +17,7 @@ const translation = {
     search: 'Search',
     send: 'Send',
     enterQuestion: 'Please enter your question',
+    stopResponding: 'Stop responding',
     lineBreak: 'Line break',
     like: 'like',
     dislike: 'dislike',

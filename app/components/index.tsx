@@ -8,7 +8,7 @@ import useConversation from '@/hooks/use-conversation'
 import Toast from '@/app/components/base/toast'
 import Sidebar from '@/app/components/sidebar'
 import ConfigSence from '@/app/components/config-scence'
-import { fetchAppParams, fetchChatList, fetchConversations, generationConversationName, sendChatMessage, updateFeedback, renameConversation, deleteConversation } from '@/service'
+import { fetchAppParams, fetchChatList, fetchConversations, generationConversationName, sendChatMessage, updateFeedback, renameConversation, deleteConversation, stopChatMessageResponding } from '@/service'
 import type { ChatItem, ConversationItem, Feedbacktype, PromptConfig, VisionFile, VisionSettings } from '@/types/app'
 import type { FileUpload } from '@/app/components/base/file-uploader-in-attachment/types'
 import { Resolution, TransferMethod, WorkflowRunningStatus } from '@/types/app'
@@ -75,6 +75,7 @@ const Main: FC<IMainProps> = () => {
     getConversationIdFromStorage,
     isNewConversation,
     currConversationInfo,
+    newConversationInfo,
     currInputs,
     newConversationInputs,
     resetNewConversationInputs,
@@ -91,7 +92,7 @@ const Main: FC<IMainProps> = () => {
     setCurrInputs(inputs)
     setChatStarted()
     // parse variables in introduction
-    setChatList(generateNewChatListWithOpenStatement('', inputs))
+    setChatList(generateNewChatListWithOpenStatement('', inputs, currConversationInfo?.suggested_questions || []))
   }
   const hasSetInputs = (() => {
     if (!isNewConversation) { return true }
@@ -109,27 +110,31 @@ const Main: FC<IMainProps> = () => {
     // update inputs of current conversation
     let notSyncToStateIntroduction = ''
     let notSyncToStateInputs: Record<string, any> | undefined | null = {}
+    let notSyncToStateSuggestedQuestions: string[] = []
     if (!isNewConversation) {
       const item = conversationList.find(item => item.id === currConversationId)
       notSyncToStateInputs = item?.inputs || {}
       setCurrInputs(notSyncToStateInputs as any)
       notSyncToStateIntroduction = item?.introduction || ''
+      // 从 newConversationInfo 获取 suggested_questions（它是从 API 参数初始化的）
+      notSyncToStateSuggestedQuestions = newConversationInfo?.suggested_questions || []
       setExistConversationInfo({
         name: item?.name || '',
         introduction: notSyncToStateIntroduction,
-        suggested_questions: suggestedQuestions,
+        suggested_questions: notSyncToStateSuggestedQuestions,
       })
     }
     else {
       notSyncToStateInputs = newConversationInputs
       setCurrInputs(notSyncToStateInputs)
+      notSyncToStateSuggestedQuestions = newConversationInfo?.suggested_questions || []
     }
 
     // update chat list of current conversation
     if (!isNewConversation && !conversationIdChangeBecauseOfNew && !isResponding) {
       fetchChatList(currConversationId).then((res: any) => {
         const { data } = res
-        const newChatList: ChatItem[] = generateNewChatListWithOpenStatement(notSyncToStateIntroduction, notSyncToStateInputs)
+        const newChatList: ChatItem[] = generateNewChatListWithOpenStatement(notSyncToStateIntroduction, notSyncToStateInputs, notSyncToStateSuggestedQuestions)
 
         data.forEach((item: any) => {
           newChatList.push({
@@ -152,7 +157,7 @@ const Main: FC<IMainProps> = () => {
       })
     }
 
-    if (isNewConversation && isChatStarted) { setChatList(generateNewChatListWithOpenStatement()) }
+    if (isNewConversation && isChatStarted) { setChatList(generateNewChatListWithOpenStatement(undefined, undefined, notSyncToStateSuggestedQuestions)) }
   }
   useEffect(handleConversationSwitch, [currConversationId, inited])
 
@@ -191,23 +196,25 @@ const Main: FC<IMainProps> = () => {
   const canEditInputs = !chatList.some(item => item.isAnswer === false) && isNewConversation
   const createNewChat = () => {
     // if new chat is already exist, do not create new chat
-    if (conversationList.some(item => item.id === '-1')) { return }
-
-    setConversationList(produce(conversationList, (draft) => {
-      draft.unshift({
-        id: '-1',
-        name: t('app.chat.newChatDefaultName'),
-        inputs: newConversationInputs,
-        introduction: conversationIntroduction,
-        suggested_questions: suggestedQuestions,
+    setConversationList(prevList => {
+      if (prevList.some(item => item.id === '-1')) { return prevList }
+      return produce(prevList, (draft) => {
+        draft.unshift({
+          id: '-1',
+          name: t('app.chat.newChatDefaultName'),
+          inputs: newConversationInputs,
+          introduction: conversationIntroduction,
+          suggested_questions: suggestedQuestions,
+        })
       })
-    }))
+    })
   }
 
   // sometime introduction is not applied to state
-  const generateNewChatListWithOpenStatement = (introduction?: string, inputs?: Record<string, any> | null) => {
+  const generateNewChatListWithOpenStatement = (introduction?: string, inputs?: Record<string, any> | null, questions?: string[]) => {
     let calculatedIntroduction = introduction || conversationIntroduction || ''
     const calculatedPromptVariables = inputs || currInputs || null
+    const calculatedSuggestedQuestions = questions || suggestedQuestions || []
     if (calculatedIntroduction && calculatedPromptVariables) { calculatedIntroduction = replaceVarWithValues(calculatedIntroduction, promptConfig?.prompt_variables || [], calculatedPromptVariables) }
 
     const openStatement = {
@@ -216,7 +223,7 @@ const Main: FC<IMainProps> = () => {
       isAnswer: true,
       feedbackDisabled: true,
       isOpeningStatement: isShowPrompt,
-      suggestedQuestions,
+      suggestedQuestions: calculatedSuggestedQuestions,
     }
     if (calculatedIntroduction) { return [openStatement] }
 
@@ -693,7 +700,7 @@ const Main: FC<IMainProps> = () => {
   const handleRenameConversation = async (id: string, name: string) => {
     try {
       await renameConversation(id, name)
-      setConversationList(produce(conversationList, (draft) => {
+      setConversationList(prevList => produce(prevList, (draft) => {
         const index = draft.findIndex(item => item.id === id)
         if (index !== -1) {
           draft[index].name = name
@@ -710,7 +717,7 @@ const Main: FC<IMainProps> = () => {
   const handleDeleteConversation = async (id: string) => {
     try {
       await deleteConversation(id)
-      setConversationList(produce(conversationList, (draft) => {
+      setConversationList(prevList => produce(prevList, (draft) => {
         const index = draft.findIndex(item => item.id === id)
         if (index !== -1) {
           draft.splice(index, 1)
@@ -724,6 +731,19 @@ const Main: FC<IMainProps> = () => {
     }
     catch (e: any) {
       notify({ type: 'error', message: e.message || t('app.errorMessage.deleteFailed') as string })
+    }
+  }
+
+  // 停止响应
+  const handleStopResponding = async () => {
+    if (!messageTaskId) return
+    try {
+      await stopChatMessageResponding(messageTaskId)
+      setRespondingFalse()
+      setHasStopResponded(true)
+    }
+    catch (e: any) {
+      notify({ type: 'error', message: e.message || 'Stop responding failed' })
     }
   }
 
@@ -799,6 +819,7 @@ const Main: FC<IMainProps> = () => {
                   onFeedback={handleFeedback}
                   onEditQuestion={handleEditQuestion}
                   onRegenerate={handleRegenerate}
+                  onStopResponding={handleStopResponding}
                   isResponding={isResponding}
                   checkCanSend={checkCanSend}
                   visionConfig={visionConfig}
